@@ -1,0 +1,12 @@
+[package]
+name = "wx-utils"
+version = "0.1.0"
+description = "Utilities to ease development of cross-platform desktop apps with wxDragon."
+license = "MIT"
+repository = "https://github.com/trypsynth/wx-utils"
+keywords = ["wxdragon", "desktop", "utility"]
+categories = ["accessibility", "gui", "localization"]
+edition = "2024"
+
+[dependencies]
+wxdragon = "0.9.16"

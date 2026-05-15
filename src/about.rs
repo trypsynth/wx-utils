@@ -68,7 +68,6 @@ impl<'a> AboutBoxBuilder<'a> {
 			if info.is_null() {
 				return;
 			}
-
 			// A quick internal macro to handle the CString conversion and FFI call
 			macro_rules! apply_str {
 				($val:expr, $f:path) => {
@@ -79,19 +78,16 @@ impl<'a> AboutBoxBuilder<'a> {
 					}
 				};
 			}
-
 			apply_str!(self.name, ffi::wxd_AboutDialogInfo_SetName);
 			apply_str!(self.version, ffi::wxd_AboutDialogInfo_SetVersion);
 			apply_str!(self.description, ffi::wxd_AboutDialogInfo_SetDescription);
 			apply_str!(self.copyright, ffi::wxd_AboutDialogInfo_SetCopyright);
 			apply_str!(self.website, ffi::wxd_AboutDialogInfo_SetWebSite);
-
 			for dev in self.developers {
 				if let Ok(cs) = CString::new(dev) {
 					ffi::wxd_AboutDialogInfo_AddDeveloper(info, cs.as_ptr());
 				}
 			}
-
 			ffi::wxd_AboutBox(info, self.parent.handle_ptr());
 			ffi::wxd_AboutDialogInfo_Destroy(info);
 		}

@@ -13,7 +13,7 @@ pub struct AboutBoxBuilder<'a> {
 }
 
 impl<'a> AboutBoxBuilder<'a> {
-	#[must_use] 
+	#[must_use]
 	pub const fn new(parent: &'a Frame) -> Self {
 		Self {
 			parent,

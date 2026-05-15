@@ -21,6 +21,7 @@ pub fn show_warning(parent: &dyn WxWidget, message: &str, title: &str) {
 /// Shows a modal single-line text entry dialog.
 ///
 /// Returns `None` if the user cancelled or entered only whitespace.
+#[must_use]
 pub fn prompt_text(parent: &Frame, message: &str, title: &str) -> Option<String> {
 	let dialog = TextEntryDialog::builder(parent, message, title)
 		.with_style(TextEntryDialogStyle::Default | TextEntryDialogStyle::ProcessEnter)

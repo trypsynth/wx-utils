@@ -1,6 +1,6 @@
 [package]
 name = "wx-utils"
-version = "0.1.1"
+version = "0.1.2"
 description = "Utilities to ease development of cross-platform desktop apps with wxDragon."
 license = "MIT"
 readme = "README.md"
@@ -9,5 +9,9 @@ keywords = ["wxdragon", "desktop", "utility"]
 categories = ["accessibility", "gui", "localization"]
 edition = "2024"
 
+[package.metadata.patois]
+translatable = true
+
 [dependencies]
+patois = "0.2.0"
 wxdragon = "0.9.16"

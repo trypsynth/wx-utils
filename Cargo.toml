@@ -14,4 +14,4 @@ translatable = true
 
 [dependencies]
 patois = "0.2.0"
-wxdragon = "0.9.16"
+wxdragon = "0.9.18"

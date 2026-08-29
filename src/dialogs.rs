@@ -3,8 +3,20 @@ use std::fmt::Display;
 use patois::t;
 use wxdragon::prelude::*;
 
-/// Default padding (in pixels) used between widgets and dialog edges.
+/// Default padding used between widgets and dialog edges, in device-independent pixels.
+///
+/// This is the value at 100% display scaling. Pass it through [`crate::dpi::scale`] before
+/// handing it to a sizer, or use [`dialog_padding`], which does that for you - on a 150%
+/// display a raw 10 here is two thirds of the intended gap.
 pub const DIALOG_PADDING: i32 = 10;
+
+/// [`DIALOG_PADDING`] scaled for the display `reference` is on.
+///
+/// Read it once per dialog and reuse it, rather than calling this at every sizer `add`.
+#[must_use]
+pub fn dialog_padding(reference: &dyn WxWidget) -> i32 {
+	crate::dpi::scale(reference, DIALOG_PADDING)
+}
 
 /// Shows a modal error dialog.
 pub fn show_error(parent: &dyn WxWidget, message: impl Display, title: &str) {
@@ -49,7 +61,7 @@ pub fn add_ok_cancel_footer(content_sizer: BoxSizer, ok_button: Button, cancel_b
 	button_sizer.add_button(&ok_button);
 	button_sizer.add_button(&cancel_button);
 	button_sizer.realize();
-	content_sizer.add_sizer(&button_sizer, 0, SizerFlag::Expand | SizerFlag::All, DIALOG_PADDING);
+	content_sizer.add_sizer(&button_sizer, 0, SizerFlag::Expand | SizerFlag::All, dialog_padding(&ok_button));
 }
 
 /// Appends a single-button row (e.g. "Close") to `content_sizer`.
@@ -60,7 +72,7 @@ pub fn add_single_button_footer(content_sizer: BoxSizer, button: Button) {
 	let button_sizer = StdDialogButtonSizerBuilder::new().build();
 	button_sizer.add_button(&button);
 	button_sizer.realize();
-	content_sizer.add_sizer(&button_sizer, 0, SizerFlag::Expand | SizerFlag::All, DIALOG_PADDING);
+	content_sizer.add_sizer(&button_sizer, 0, SizerFlag::Expand | SizerFlag::All, dialog_padding(&button));
 }
 
 /// Binds `ctrl`'s Enter key (`TEXT_ENTER`) to confirm `dialog` as if its OK button were
@@ -98,11 +110,12 @@ pub fn prompt_number(
 		.build();
 	ctrl.set_value(initial.clamp(min, max));
 	bind_enter_confirms(dialog, ctrl);
+	let padding = dialog_padding(&dialog);
 	let row = BoxSizer::builder(Orientation::Horizontal).build();
-	row.add(&lbl, 0, SizerFlag::AlignCenterVertical | SizerFlag::Right, 5);
+	row.add(&lbl, 0, SizerFlag::AlignCenterVertical | SizerFlag::Right, crate::dpi::scale(&dialog, 5));
 	row.add(&ctrl, 1, SizerFlag::Expand, 0);
 	let content = BoxSizer::builder(Orientation::Vertical).build();
-	content.add_sizer(&row, 0, SizerFlag::Expand | SizerFlag::All, DIALOG_PADDING);
+	content.add_sizer(&row, 0, SizerFlag::Expand | SizerFlag::All, padding);
 	let (ok_button, cancel_button) = build_ok_cancel_buttons(dialog, ok_label);
 	add_ok_cancel_footer(content, ok_button, cancel_button);
 	dialog.set_sizer_and_fit(content, true);

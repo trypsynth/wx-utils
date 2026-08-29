@@ -1,6 +1,6 @@
 [package]
 name = "wx-utils"
-version = "0.1.2"
+version = "0.2.0"
 description = "Utilities to ease development of cross-platform desktop apps with wxDragon."
 license = "MIT"
 readme = "README.md"

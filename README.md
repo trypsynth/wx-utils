@@ -19,7 +19,20 @@ Build and lay out a standard OK/Cancel row in two steps, meant to be used togeth
 * `build_ok_cancel_buttons` constructs the pair and wires the logical behavior that never varies by platform: `ID_OK`/`ID_CANCEL`, Escape cancels, Enter/default confirms. It does not decide on-screen order.
 * `add_ok_cancel_footer` (and `add_single_button_footer` for a single dismiss button) then lays the buttons out with a native `wxStdDialogButtonSizer`, which is what actually enforces the platform HIG order (Cancel/OK on macOS, OK/Cancel on Windows), regardless of the order you passed the buttons in.
 * `bind_enter_confirms` submits a dialog when Enter is pressed in a text or spin control.
-* `DIALOG_PADDING` is the padding constant these functions use, exposed so your own sizers can match.
+* `build_yes_no_buttons` and `add_yes_no_footer` are the Yes/No counterparts, and `confirm` is the whole dialog in one call.
+* `DIALOG_PADDING` is the padding constant these functions use, exposed so your own sizers can match; `dialog_padding` returns it scaled for the display (see DPI scaling below).
+
+Each `build_*_buttons` function has an `_on` variant that parents the buttons to a `Panel` (or any other window) instead of to the dialog itself, for dialogs whose content lives in a panel.
+
+### Why `confirm` rather than a Yes/No `MessageDialog`
+
+On Windows, `MessageDialogStyle::YesNo` is the native task dialog, and its buttons are labeled by the *operating system*, in the system language. An app translated into French running on an English Windows shows a French question above English Yes/No buttons. `confirm` builds real `Button`s labeled through patois, so they read in the app's own language like the rest of the dialog.
+
+### DPI scaling
+
+`dpi::scale` and `dpi::scale_size` convert sizes written in device-independent pixels (what a size should measure at 100% display scaling) into the physical pixels wx wants.
+
+A per-monitor DPI aware application is telling Windows it will handle scaling itself, so a dialog asked for 800x600 gets 800x600 *physical* pixels: two thirds of its intended size on a 150% display. These use the DPI of the display the given window is actually on, so a dialog opened on a second monitor with different scaling is sized for that monitor. On macOS and GTK, where wx already works in logical coordinates, they return their input unchanged.
 
 This is the exact pattern every OK/Cancel dialog in Paperback is built on.
 
@@ -55,19 +68,31 @@ pub fn on_about(parent: &Frame) {
 ```
 
 ```rust
-use wx_utils::{DIALOG_PADDING, add_ok_cancel_footer, build_ok_cancel_buttons};
+use wx_utils::confirm;
 use wxdragon::prelude::*;
 
 pub fn confirm_delete(parent: &Frame) -> bool {
-	let dialog = Dialog::builder(parent, "Delete File").build();
-	let label = StaticText::builder(&dialog).with_label("Delete this file permanently?").build();
-	let (ok_button, cancel_button) = build_ok_cancel_buttons(dialog, "Delete");
+	confirm(parent, "Delete this file permanently?", "Delete File")
+}
+```
+
+For a dialog of your own, the button helpers lay out the footer:
+
+```rust
+use wx_utils::{add_ok_cancel_footer, build_ok_cancel_buttons, dialog_padding};
+use wxdragon::prelude::*;
+
+pub fn prompt_for_name(parent: &Frame) -> Option<String> {
+	let dialog = Dialog::builder(parent, "Rename").build();
+	let padding = dialog_padding(&dialog);
+	let entry = TextCtrl::builder(&dialog).build();
+	let (ok_button, cancel_button) = build_ok_cancel_buttons(&dialog, "Rename");
 	let content = BoxSizer::builder(Orientation::Vertical).build();
-	content.add(&label, 0, SizerFlag::All, DIALOG_PADDING);
+	content.add(&entry, 0, SizerFlag::Expand | SizerFlag::All, padding);
 	add_ok_cancel_footer(content, ok_button, cancel_button);
 	dialog.set_sizer_and_fit(content, true);
 	dialog.centre();
-	dialog.show_modal() == ID_OK
+	if dialog.show_modal() == ID_OK { Some(entry.get_value()) } else { None }
 }
 ```
 

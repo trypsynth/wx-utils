@@ -20,23 +20,34 @@ Build and lay out a standard OK/Cancel row in two steps, meant to be used togeth
 * `add_ok_cancel_footer` (and `add_single_button_footer` for a single dismiss button) then lays the buttons out with a native `wxStdDialogButtonSizer`, which is what actually enforces the platform HIG order (Cancel/OK on macOS, OK/Cancel on Windows), regardless of the order you passed the buttons in.
 * `bind_enter_confirms` submits a dialog when Enter is pressed in a text or spin control.
 * `build_yes_no_buttons` and `add_yes_no_footer` are the Yes/No counterparts, and `confirm` is the whole dialog in one call.
-* `DIALOG_PADDING` is the padding constant these functions use, exposed so your own sizers can match; `dialog_padding` returns it scaled for the display (see DPI scaling below).
+* `DIALOG_PADDING` is the padding constant these functions use, exposed so your own sizers can match; `dialog_padding` returns it scaled for the display the given window is on, via wxDragon's `WxWidget::from_dip_int`.
 
 Each `build_*_buttons` function has an `_on` variant that parents the buttons to a `Panel` (or any other window) instead of to the dialog itself, for dialogs whose content lives in a panel.
+
+The Cancel label is translated automatically (see Translation below); you only supply the OK label, since that varies by dialog ("OK", "Go", etc).
 
 ### Why `confirm` rather than a Yes/No `MessageDialog`
 
 On Windows, `MessageDialogStyle::YesNo` is the native task dialog, and its buttons are labeled by the *operating system*, in the system language. An app translated into French running on an English Windows shows a French question above English Yes/No buttons. `confirm` builds real `Button`s labeled through patois, so they read in the app's own language like the rest of the dialog.
 
-### DPI scaling
+### Keyboard shortcuts
 
-`dpi::scale` and `dpi::scale_size` convert sizes written in device-independent pixels (what a size should measure at 100% display scaling) into the physical pixels wx wants.
+`shortcuts::prompt_for_shortcuts` is a whole Customize Keyboard Shortcuts dialog: a tab per group of actions, a list of them with their current bindings, Set/Clear/Reset/Reset All, conflict detection, and a capture dialog that records whatever key combination you press and announces it to a screen reader as you type.
 
-A per-monitor DPI aware application is telling Windows it will handle scaling itself, so a dialog asked for 800x600 gets 800x600 *physical* pixels: two thirds of its intended size on a 150% display. These use the DPI of the display the given window is actually on, so a dialog opened on a second monitor with different scaling is sized for that monitor. On macOS and GTK, where wx already works in logical coordinates, they return their input unchanged.
+Your app keeps its own action type and its own storage. Implement `shortcuts::ShortcutModel` over whatever your config already looks like and the dialog does the rest, handing back an edited copy when the user confirms.
 
-This is the exact pattern every OK/Cancel dialog in Paperback is built on.
+`ShortcutModel::tab_kind` is the one thing worth reading twice. `TabKind::SharedKeymap` means the tabs are views onto one keymap, so a chord has to be unique across all of them; that is what tabs-by-category want. `TabKind::SeparateKeymaps` means each tab is a keymap of its own and the same key can mean different things in each; that is what tabs-by-input-mode want. It decides how far conflict detection looks.
 
-The Cancel label is translated automatically (see Translation below); you only supply the OK label, since that varies by dialog ("OK", "Go", etc).
+Behind the `shortcuts` feature, which is off by default since it pulls in [live-region](https://github.com/trypsynth/live-region) for the announcements. The chord type itself is [key-chord](https://github.com/trypsynth/key-chord), re-exported as `shortcuts::KeyChord`.
+
+### Menus
+
+* `menu_label` joins an item's text and its shortcut into the `"Open	Ctrl+O"` form wx wants. An empty shortcut gives back a bare label rather than a trailing tab.
+* `set_menu_item_label` relabels an existing item in a `MenuBar`, and does nothing if the id isn't there, so a menu that varies by platform can be relabelled in one pass.
+
+### Durations
+
+`format_duration_seconds` and `format_duration_ms` write a duration as a localized list of its non-zero segments, such as "1 hour, 5 minutes, 3 seconds". In words rather than as `1:05:03`, because this is text a screen reader reads aloud and a colon-separated form is liable to be read as a time of day.
 
 ### Prompts and messages
 

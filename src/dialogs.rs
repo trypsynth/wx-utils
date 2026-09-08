@@ -5,7 +5,7 @@ use wxdragon::prelude::*;
 
 /// Default padding used between widgets and dialog edges, in device-independent pixels.
 ///
-/// This is the value at 100% display scaling. Pass it through [`crate::dpi::scale`] before
+/// This is the value at 100% display scaling. Pass it through [`WxWidget::from_dip_int`] before
 /// handing it to a sizer, or use [`dialog_padding`], which does that for you - on a 150%
 /// display a raw 10 here is two thirds of the intended gap.
 pub const DIALOG_PADDING: i32 = 10;
@@ -15,7 +15,7 @@ pub const DIALOG_PADDING: i32 = 10;
 /// Read it once per dialog and reuse it, rather than calling this at every sizer `add`.
 #[must_use]
 pub fn dialog_padding(reference: &dyn WxWidget) -> i32 {
-	crate::dpi::scale(reference, DIALOG_PADDING)
+	reference.from_dip_int(DIALOG_PADDING)
 }
 
 /// Shows a modal error dialog.
@@ -186,7 +186,7 @@ pub fn prompt_number(
 	bind_enter_confirms(&dialog, ctrl);
 	let padding = dialog_padding(&dialog);
 	let row = BoxSizer::builder(Orientation::Horizontal).build();
-	row.add(&lbl, 0, SizerFlag::AlignCenterVertical | SizerFlag::Right, crate::dpi::scale(&dialog, 5));
+	row.add(&lbl, 0, SizerFlag::AlignCenterVertical | SizerFlag::Right, dialog.from_dip_int(5));
 	row.add(&ctrl, 1, SizerFlag::Expand, 0);
 	let content = BoxSizer::builder(Orientation::Vertical).build();
 	content.add_sizer(&row, 0, SizerFlag::Expand | SizerFlag::All, padding);

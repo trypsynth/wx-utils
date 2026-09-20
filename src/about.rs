@@ -9,7 +9,11 @@ pub struct AboutBoxBuilder<'a> {
 	description: Option<String>,
 	copyright: Option<String>,
 	website: Option<String>,
+	licence: Option<String>,
 	developers: Vec<String>,
+	translators: Vec<String>,
+	artists: Vec<String>,
+	doc_writers: Vec<String>,
 }
 
 impl<'a> AboutBoxBuilder<'a> {
@@ -22,7 +26,11 @@ impl<'a> AboutBoxBuilder<'a> {
 			description: None,
 			copyright: None,
 			website: None,
+			licence: None,
 			developers: Vec::new(),
+			translators: Vec::new(),
+			artists: Vec::new(),
+			doc_writers: Vec::new(),
 		}
 	}
 
@@ -56,9 +64,41 @@ impl<'a> AboutBoxBuilder<'a> {
 		self
 	}
 
+	/// Sets the licence text shown in the dialog.
+	///
+	/// Platforms that offer a native about box do not have a place for this, so setting it makes
+	/// wxWidgets fall back to its own dialog. That is already the case once developers or a
+	/// website are set, so it costs nothing alongside those.
+	#[must_use]
+	pub fn licence(mut self, licence: impl Into<String>) -> Self {
+		self.licence = Some(licence.into());
+		self
+	}
+
 	#[must_use]
 	pub fn add_developer(mut self, dev: impl Into<String>) -> Self {
 		self.developers.push(dev.into());
+		self
+	}
+
+	/// Credits someone who translated the application, listed under their own heading in the
+	/// dialog rather than mixed in with the developers.
+	#[must_use]
+	pub fn add_translator(mut self, translator: impl Into<String>) -> Self {
+		self.translators.push(translator.into());
+		self
+	}
+
+	#[must_use]
+	pub fn add_artist(mut self, artist: impl Into<String>) -> Self {
+		self.artists.push(artist.into());
+		self
+	}
+
+	/// Credits someone who wrote the documentation.
+	#[must_use]
+	pub fn add_doc_writer(mut self, writer: impl Into<String>) -> Self {
+		self.doc_writers.push(writer.into());
 		self
 	}
 
@@ -83,11 +123,20 @@ impl<'a> AboutBoxBuilder<'a> {
 			apply_str!(self.description, ffi::wxd_AboutDialogInfo_SetDescription);
 			apply_str!(self.copyright, ffi::wxd_AboutDialogInfo_SetCopyright);
 			apply_str!(self.website, ffi::wxd_AboutDialogInfo_SetWebSite);
-			for dev in self.developers {
-				if let Ok(cs) = CString::new(dev) {
-					ffi::wxd_AboutDialogInfo_AddDeveloper(info, cs.as_ptr());
-				}
+			apply_str!(self.licence, ffi::wxd_AboutDialogInfo_SetLicence);
+			macro_rules! apply_each {
+				($vals:expr, $f:path) => {
+					for value in $vals {
+						if let Ok(cs) = CString::new(value) {
+							$f(info, cs.as_ptr());
+						}
+					}
+				};
 			}
+			apply_each!(self.developers, ffi::wxd_AboutDialogInfo_AddDeveloper);
+			apply_each!(self.translators, ffi::wxd_AboutDialogInfo_AddTranslator);
+			apply_each!(self.artists, ffi::wxd_AboutDialogInfo_AddArtist);
+			apply_each!(self.doc_writers, ffi::wxd_AboutDialogInfo_AddDocWriter);
 			ffi::wxd_AboutBox(info, self.parent.handle_ptr());
 			ffi::wxd_AboutDialogInfo_Destroy(info);
 		}

@@ -19,4 +19,6 @@ shortcuts = ["dep:live-region", "dep:key-chord"]
 key-chord = { version = "0.1.0", optional = true }
 live-region = { version = "0.3.0", optional = true }
 patois = "0.2.1"
-wxdragon = "0.9.22"
+# default-features = false so this does not decide for the application
+# which parts of wxWidgets get built; nothing here needs any of them.
+wxdragon = { version = "0.9.22", default-features = false }

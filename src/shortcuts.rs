@@ -5,14 +5,15 @@
 //! [`prompt_for_shortcuts`], which returns an edited copy when the user confirms.
 //!
 //! ```no_run
-//! # use wx_utils::shortcuts::{KeyChord, ShortcutModel, TabKind, prompt_for_shortcuts};
+//! # use wx_utils::shortcuts::{KeyChord, ShortcutModel, TabScope, prompt_for_shortcuts};
 //! # use wxdragon::prelude::*;
 //! # #[derive(Clone)]
 //! # struct MyShortcuts;
 //! impl ShortcutModel for MyShortcuts {
 //!     type Action = u32;
 //!     fn tabs(&self) -> Vec<String> { vec!["File".to_string(), "Go".to_string()] }
-//!     fn tab_kind(&self) -> TabKind { TabKind::SharedKeymap }
+//!     // Two category tabs over one keymap: both are always in the same mode.
+//!     fn tab_scope(&self, _tab: usize) -> TabScope { TabScope::Mode(0) }
 //!     # fn actions(&self, _tab: usize) -> Vec<u32> { vec![] }
 //!     # fn action_name(&self, _action: u32) -> String { String::new() }
 //!     # fn chord(&self, _tab: usize, _action: u32) -> Option<KeyChord> { None }
@@ -38,24 +39,42 @@ mod capture;
 
 pub use key_chord::KeyChord;
 
-/// How a model's tabs relate to each other, which is what decides whether two bindings in
-/// different tabs can collide.
+/// When a tab's shortcuts are active, which is what decides whether two bindings can collide:
+/// two chords only conflict if their tabs can be active at the same time.
+///
+/// * Category tabs that group one keymap put every tab in the same [`Mode`](TabScope::Mode).
+/// * Input modes, where only one is on at a time and the same key can mean different things in
+///   each, give each tab a mode of its own.
+/// * System-wide hotkeys are [`Global`](TabScope::Global). They fire even while the app's own
+///   window has focus, so they conflict with every other tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TabKind {
-	/// The tabs are views onto one keymap, so a chord has to be unique across all of them.
-	/// Tabs that group actions by category work this way.
-	SharedKeymap,
-	/// Each tab is a keymap of its own, so a chord only has to be unique within its tab, and
-	/// the same key can mean different things in different tabs. Tabs that are input modes
-	/// work this way.
-	SeparateKeymaps,
+pub enum TabScope {
+	/// Active whenever the app is running, whether or not its window has focus.
+	///
+	/// The dialog requires Ctrl, Alt or Win on these chords, since a bare key would take that key
+	/// from every other program, and offers the Win modifier, which only global hotkeys can use.
+	Global,
+	/// Active while the app is in this mode. Tabs in the same mode share a keymap and conflict
+	/// with each other; tabs in different modes never do.
+	Mode(u32),
+}
+
+impl TabScope {
+	/// Whether a binding in one scope can collide with a binding in the other.
+	#[must_use]
+	pub const fn overlaps(self, other: Self) -> bool {
+		match (self, other) {
+			(Self::Global, _) | (_, Self::Global) => true,
+			(Self::Mode(a), Self::Mode(b)) => a == b,
+		}
+	}
 }
 
 /// An app's keymap, as much of it as the dialog needs to see.
 ///
-/// `tab` is an index into [`tabs`](ShortcutModel::tabs) throughout. For [`TabKind::SharedKeymap`]
-/// it only says which tab the user is looking at and can be ignored by the lookups; for
-/// [`TabKind::SeparateKeymaps`] it selects which keymap to read or write.
+/// `tab` is an index into [`tabs`](ShortcutModel::tabs) throughout. When several tabs share a
+/// [`TabScope::Mode`] it only says which tab the user is looking at and the lookups can ignore it;
+/// otherwise it selects which keymap to read or write.
 pub trait ShortcutModel: Clone {
 	/// The app's action identifier. Usually a fieldless enum.
 	type Action: Copy + Eq;
@@ -63,8 +82,8 @@ pub trait ShortcutModel: Clone {
 	/// Tab labels, in order, already translated. One tab is fine.
 	fn tabs(&self) -> Vec<String>;
 
-	/// Whether the tabs share one keymap. See [`TabKind`].
-	fn tab_kind(&self) -> TabKind;
+	/// When `tab`'s shortcuts are active. See [`TabScope`].
+	fn tab_scope(&self, tab: usize) -> TabScope;
 
 	/// The actions listed under `tab`, in the order they should appear.
 	fn actions(&self, tab: usize) -> Vec<Self::Action>;
@@ -87,8 +106,8 @@ pub trait ShortcutModel: Clone {
 
 	/// Drops every override the user could have reached from `tab`.
 	///
-	/// For [`TabKind::SharedKeymap`] that is the whole keymap; for [`TabKind::SeparateKeymaps`]
-	/// it is only this tab's.
+	/// That is every tab in the same [`TabScope::Mode`] as `tab`, or only `tab` itself when it is
+	/// [`TabScope::Global`].
 	fn reset_all(&mut self, tab: usize);
 }
 
@@ -210,10 +229,23 @@ fn build_tab<M: ShortcutModel + 'static>(
 				let model = state.borrow();
 				(model.action_name(action), model.chord(tab, action))
 			};
-			let Some(result) = capture::prompt_for_key_chord(&parent, &name, current_chord.as_ref()) else {
+			let is_global = state.borrow().tab_scope(tab) == TabScope::Global;
+			let Some(result) = capture::prompt_for_key_chord(&parent, &name, current_chord.as_ref(), is_global) else {
 				return;
 			};
 			if let Some(new_chord) = &result {
+				if is_global && !(new_chord.ctrl || new_chord.raw_ctrl || new_chord.alt || new_chord.win) {
+					crate::show_warning(
+						&parent,
+						// TRANSLATORS: Shown when a system-wide shortcut has no Ctrl, Alt or Win modifier.
+						t(
+							"A system-wide shortcut needs Ctrl, Alt or Win, or it would take that key from every other program.",
+						),
+						// TRANSLATORS: Title of the dialog refusing a shortcut that can't be used.
+						&t("Shortcut Not Allowed"),
+					);
+					return;
+				}
 				let conflict = find_conflict(&*state.borrow(), tab, action, new_chord);
 				if let Some((other_tab, other_action)) = conflict {
 					// TRANSLATORS: the three {} are, in order: the key chord, the action it's currently assigned to, and the action being (re)assigned to it
@@ -260,11 +292,18 @@ fn build_tab<M: ShortcutModel + 'static>(
 	let refresh_on_reset_all = refresh_all;
 	let parent_reset_all = parent_dialog;
 	reset_all_button.on_click(move |_| {
-		let message = match state_on_reset_all.borrow().tab_kind() {
-			// TRANSLATORS: Confirmation prompt shown when resetting all keyboard shortcuts to their defaults.
-			TabKind::SharedKeymap => t("Reset all shortcuts to their default values?"),
+		let resets_other_tabs = {
+			let model = state_on_reset_all.borrow();
+			let scope = model.tab_scope(tab);
+			scope != TabScope::Global
+				&& (0..model.tabs().len()).any(|other| other != tab && model.tab_scope(other) == scope)
+		};
+		let message = if resets_other_tabs {
+			// TRANSLATORS: Confirmation prompt shown when resetting keyboard shortcuts that span more than one tab to their defaults.
+			t("Reset all shortcuts to their default values?")
+		} else {
 			// TRANSLATORS: Confirmation prompt shown when resetting the current tab's keyboard shortcuts to their defaults.
-			TabKind::SeparateKeymaps => t("Reset all shortcuts in this tab to their default values?"),
+			t("Reset all shortcuts in this tab to their default values?")
 		};
 		// TRANSLATORS: Title of the confirmation dialog for resetting keyboard shortcuts to their defaults.
 		if crate::confirm(&parent_reset_all, &message, &t("Reset Shortcuts")) {
@@ -283,21 +322,19 @@ fn format_list_item<M: ShortcutModel>(model: &M, tab: usize, action: M::Action) 
 
 /// The action already holding `target_chord`, if any, and the tab it lives in.
 ///
-/// How far this looks depends on [`ShortcutModel::tab_kind`]: across every tab when they share
-/// one keymap, and only within `tab` when each tab is its own.
+/// Only tabs whose [`TabScope`] overlaps `tab`'s are searched, since a chord can't collide with
+/// one that is never active at the same time.
 fn find_conflict<M: ShortcutModel>(
 	model: &M,
 	tab: usize,
 	target_action: M::Action,
 	target_chord: &KeyChord,
 ) -> Option<(usize, M::Action)> {
-	let tabs: Vec<usize> = match model.tab_kind() {
-		TabKind::SharedKeymap => (0..model.tabs().len()).collect(),
-		TabKind::SeparateKeymaps => vec![tab],
-	};
-	for candidate_tab in tabs {
+	let scope = model.tab_scope(tab);
+	for candidate_tab in (0..model.tabs().len()).filter(|&other| model.tab_scope(other).overlaps(scope)) {
 		for action in model.actions(candidate_tab) {
-			if action == target_action {
+			// The same action in another tab of this mode is this same binding, seen from there.
+			if action == target_action && model.tab_scope(candidate_tab) == scope {
 				continue;
 			}
 			if model.chord(candidate_tab, action).is_some_and(|c| c.conflicts_with(target_chord)) {
@@ -306,4 +343,84 @@ fn find_conflict<M: ShortcutModel>(
 		}
 	}
 	None
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Tabs given as (scope, [(action, chord)]).
+	#[derive(Clone)]
+	struct Model(Vec<(TabScope, Vec<(u32, &'static str)>)>);
+
+	impl ShortcutModel for Model {
+		type Action = u32;
+
+		fn tabs(&self) -> Vec<String> {
+			(0..self.0.len()).map(|i| i.to_string()).collect()
+		}
+
+		fn tab_scope(&self, tab: usize) -> TabScope {
+			self.0[tab].0
+		}
+
+		fn actions(&self, tab: usize) -> Vec<u32> {
+			self.0[tab].1.iter().map(|(action, _)| *action).collect()
+		}
+
+		fn action_name(&self, action: u32) -> String {
+			action.to_string()
+		}
+
+		fn chord(&self, tab: usize, action: u32) -> Option<KeyChord> {
+			self.0[tab].1.iter().find(|(a, _)| *a == action).and_then(|(_, chord)| KeyChord::parse(chord))
+		}
+
+		fn set_chord(&mut self, _tab: usize, _action: u32, _chord: Option<KeyChord>) {}
+
+		fn reset_action(&mut self, _tab: usize, _action: u32) {}
+
+		fn reset_all(&mut self, _tab: usize) {}
+	}
+
+	fn chord(text: &str) -> KeyChord {
+		KeyChord::parse(text).unwrap()
+	}
+
+	#[test]
+	fn global_overlaps_everything_and_modes_only_themselves() {
+		assert!(TabScope::Global.overlaps(TabScope::Mode(0)));
+		assert!(TabScope::Mode(1).overlaps(TabScope::Global));
+		assert!(TabScope::Mode(2).overlaps(TabScope::Mode(2)));
+		assert!(!TabScope::Mode(0).overlaps(TabScope::Mode(1)));
+	}
+
+	#[test]
+	fn separate_modes_can_reuse_a_chord() {
+		let model = Model(vec![(TabScope::Mode(0), vec![(1, "Ctrl+R")]), (TabScope::Mode(1), vec![(2, "Ctrl+R")])]);
+		assert_eq!(find_conflict(&model, 1, 2, &chord("Ctrl+R")), None);
+	}
+
+	#[test]
+	fn a_global_chord_conflicts_with_every_mode() {
+		let model = Model(vec![
+			(TabScope::Mode(0), vec![(1, "Ctrl+Up")]),
+			(TabScope::Mode(1), vec![(2, "Alt+R")]),
+			(TabScope::Global, vec![(3, "Ctrl+Win+Up")]),
+		]);
+		assert_eq!(find_conflict(&model, 2, 3, &chord("Ctrl+Up")), Some((0, 1)));
+		assert_eq!(find_conflict(&model, 2, 3, &chord("Alt+R")), Some((1, 2)));
+		// And the other way round: a local chord runs into a global one.
+		assert_eq!(find_conflict(&model, 0, 1, &chord("Ctrl+Win+Up")), Some((2, 3)));
+	}
+
+	#[test]
+	fn tabs_in_one_mode_share_a_keymap() {
+		// Two category tabs over one keymap, listing the same action.
+		let model =
+			Model(vec![(TabScope::Mode(0), vec![(1, "Ctrl+O")]), (TabScope::Mode(0), vec![(1, "Ctrl+O"), (2, "")])]);
+		// Rebinding action 1 to its own chord isn't a conflict with itself in the other tab.
+		assert_eq!(find_conflict(&model, 1, 1, &chord("Ctrl+O")), None);
+		assert_eq!(find_conflict(&model, 1, 2, &chord("Ctrl+O")), Some((0, 1)));
+	}
 }

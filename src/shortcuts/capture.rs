@@ -21,6 +21,10 @@ const RESERVED_KEYS: [i32; 10] = [9, 27, 314, 315, 316, 317, 378, 380, 382, 383]
 
 /// Asks the user for a key combination for `action_name`.
 ///
+/// `allow_win` adds a Win checkbox, for system-wide hotkeys. It has to be a checkbox: wx key
+/// events don't report the Win key, and Windows takes many Win combinations before the capture
+/// field could see them.
+///
 /// The two levels of `Option` are different answers: `None` means the user cancelled and
 /// nothing should change, `Some(None)` means they cleared the binding on purpose, and
 /// `Some(Some(chord))` is a new binding.
@@ -31,6 +35,7 @@ pub(super) fn prompt_for_key_chord(
 	parent: &dyn WxWidget,
 	action_name: &str,
 	initial: Option<&KeyChord>,
+	allow_win: bool,
 ) -> Option<Option<KeyChord>> {
 	// TRANSLATORS: Title of the Set Shortcut dialog. The {} placeholder is replaced with the action's display name.
 	let title = t("Set Shortcut for {}").replace("{}", action_name);
@@ -54,6 +59,9 @@ pub(super) fn prompt_for_key_chord(
 	let alt_cb = CheckBox::builder(&panel).with_label(&t("&Alt")).build();
 	// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Shift modifier in the shortcut.
 	let shift_cb = CheckBox::builder(&panel).with_label(&t("&Shift")).build();
+	// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Windows logo key in a system-wide shortcut.
+	let win_cb = CheckBox::builder(&panel).with_label(&t("&Win")).build();
+	win_cb.show(allow_win);
 	// One checkbox stands for both Ctrl and physical Control, since they are the same key off
 	// macOS and the distinction would be noise in the UI. A chord that arrived as raw Control
 	// keeps that until the user touches the modifiers or captures a new key, at which point it
@@ -63,12 +71,14 @@ pub(super) fn prompt_for_key_chord(
 		ctrl_cb.set_value(chord.ctrl || chord.raw_ctrl);
 		alt_cb.set_value(chord.alt);
 		shift_cb.set_value(chord.shift);
+		win_cb.set_value(allow_win && chord.win);
 	}
 	let mod_sizer = BoxSizer::builder(Orientation::Horizontal).build();
 	let mod_gap = dialog.from_dip_int(12);
 	mod_sizer.add(&ctrl_cb, 0, SizerFlag::Right, mod_gap);
 	mod_sizer.add(&alt_cb, 0, SizerFlag::Right, mod_gap);
 	mod_sizer.add(&shift_cb, 0, SizerFlag::Right, mod_gap);
+	mod_sizer.add(&win_cb, 0, SizerFlag::Right, mod_gap);
 	main_sizer.add_sizer(
 		&mod_sizer,
 		0,
@@ -101,7 +111,8 @@ pub(super) fn prompt_for_key_chord(
 		if trimmed.is_empty() {
 			None
 		} else {
-			let chord = KeyChord::new(ctrl_cb.get_value(), alt_cb.get_value(), shift_cb.get_value(), &trimmed);
+			let chord = KeyChord::new(ctrl_cb.get_value(), alt_cb.get_value(), shift_cb.get_value(), &trimmed)
+				.with_win(win_cb.get_value());
 			Some(chord.to_shortcut_string())
 		}
 	};
@@ -149,6 +160,8 @@ pub(super) fn prompt_for_key_chord(
 	alt_cb.on_toggled(move |_| update_preview_alt());
 	let update_preview_shift = update_preview;
 	shift_cb.on_toggled(move |_| update_preview_shift());
+	let update_preview_win = update_preview;
+	win_cb.on_toggled(move |_| update_preview_win());
 	// TRANSLATORS: OK button in the Set Shortcut dialog that accepts the captured key combination.
 	let (ok_button, cancel_button) = build_ok_cancel_buttons_on(&panel, &dialog, &t("OK"));
 	// TRANSLATORS: Button in the Set Shortcut dialog that clears the captured key combination.
@@ -191,5 +204,5 @@ pub(super) fn prompt_for_key_chord(
 	} else {
 		KeyChord::new(ctrl_cb.get_value(), alt_cb.get_value(), shift_cb.get_value(), trimmed)
 	};
-	Some(Some(chord))
+	Some(Some(chord.with_win(win_cb.get_value())))
 }

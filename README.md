@@ -36,9 +36,22 @@ On Windows, `MessageDialogStyle::YesNo` is the native task dialog, and its butto
 
 Your app keeps its own action type and its own storage. Implement `shortcuts::ShortcutModel` over whatever your config already looks like and the dialog does the rest, handing back an edited copy when the user confirms.
 
-`ShortcutModel::tab_kind` is the one thing worth reading twice. `TabKind::SharedKeymap` means the tabs are views onto one keymap, so a chord has to be unique across all of them; that is what tabs-by-category want. `TabKind::SeparateKeymaps` means each tab is a keymap of its own and the same key can mean different things in each; that is what tabs-by-input-mode want. It decides how far conflict detection looks.
+`ShortcutModel::tab_scope` is the one thing worth reading twice. It says when each tab's shortcuts are active, and two chords only conflict if their tabs can be active at the same time:
+
+* `TabScope::Mode(n)`: active while the app is in mode `n`. Tabs in the same mode are views onto one keymap, so a chord has to be unique across them; that is what tabs-by-category want. Tabs in different modes never conflict, so the same key can mean different things in each; that is what tabs-by-input-mode want.
+* `TabScope::Global`: system-wide hotkeys, active whether or not the window has focus. They fire even over the app's own window, so they conflict with every other tab. The dialog requires Ctrl, Alt or Win on each chord, and adds a Win checkbox to the capture dialog.
+
+It also decides what Reset All covers: every tab in the same mode, or just the one Global tab.
 
 Behind the `shortcuts` feature, which is off by default since it pulls in [live-region](https://github.com/trypsynth/live-region) for the announcements. The chord type itself is [key-chord](https://github.com/trypsynth/key-chord), re-exported as `shortcuts::KeyChord`.
+
+### Global hotkeys
+
+`global_hotkeys::GlobalHotkeys::register` registers chords system-wide, each paired with a value of your choosing, and calls you back with that value when one is pressed. Dropping the handle unregisters them all. It returns the chords it couldn't register, usually because another program holds them, so you can tell the user rather than leave a hotkey that silently does nothing.
+
+The callback runs on the hotkey thread, so pass the value along, for example down a channel your UI thread drains, rather than touching widgets from it. Holding a hotkey down repeats it, like any other key.
+
+Behind the `global-hotkeys` feature. Only Windows is implemented; elsewhere every chord comes back unregistered.
 
 ### Menus
 

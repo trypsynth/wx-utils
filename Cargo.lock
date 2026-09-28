@@ -576,8 +576,6 @@ dependencies = [
 [[package]]
 name = "key-chord"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51c77b35c5bcda790d6ee8c4734e9b762c4505717c09d5bc32bfee2594df0307"
 
 [[package]]
 name = "libc"
@@ -1489,6 +1487,7 @@ dependencies = [
  "key-chord",
  "live-region",
  "patois",
+ "windows",
  "wxdragon",
 ]
 

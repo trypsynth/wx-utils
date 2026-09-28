@@ -3,6 +3,8 @@
 mod about;
 mod dialogs;
 mod duration;
+#[cfg(feature = "global-hotkeys")]
+pub mod global_hotkeys;
 mod ids;
 mod menu;
 #[cfg(feature = "shortcuts")]

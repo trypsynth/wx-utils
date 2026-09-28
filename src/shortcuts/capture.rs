@@ -9,8 +9,8 @@ use super::KeyChord;
 use crate::{build_ok_cancel_buttons_on, dialog_padding};
 
 /// Modal return code for the Clear button, telling [`prompt_for_key_chord`] the user wants the
-/// action unbound rather than cancelled. Well above `wxID_HIGHEST` (5999) so it cannot collide
-/// with a stock wx id, and private to this dialog, so it cannot collide with an app's own.
+/// action unbound rather than canceled. Well above `wxID_HIGHEST` (5999) so it cannot collide
+/// with a stock wx ID, and private to this dialog, so it cannot collide with an app's own.
 const ID_CLEAR_SHORTCUT: i32 = 10099;
 
 /// Key codes the capture field must let through rather than record.
@@ -25,7 +25,7 @@ const RESERVED_KEYS: [i32; 10] = [9, 27, 314, 315, 316, 317, 378, 380, 382, 383]
 /// events don't report the Win key, and Windows takes many Win combinations before the capture
 /// field could see them.
 ///
-/// The two levels of `Option` are different answers: `None` means the user cancelled and
+/// The two levels of `Option` are different answers: `None` means the user canceled and
 /// nothing should change, `Some(None)` means they cleared the binding on purpose, and
 /// `Some(Some(chord))` is a new binding.
 // The nested Option carries three distinct answers, spelled out above; and the body is one
@@ -117,7 +117,7 @@ pub(super) fn prompt_for_key_chord(
 		}
 	};
 	let refresh_preview_label = move || {
-		// TRANSLATORS: Preview text in the Set Shortcut dialog showing the key combination captured so far. The {} placeholder is replaced with the shortcut, e.g. "Ctrl+Shift+K".
+		// TRANSLATORS: Preview text in the Set Shortcut dialog showing the key combination captured so far. The {} placeholder is replaced with the shortcut, for example "Ctrl+Shift+K".
 		let text =
 			current_shortcut_text().map_or_else(|| t("Detected: (none)"), |s| t("Detected: {}").replace("{}", &s));
 		preview_label.set_label(&text);
@@ -166,7 +166,7 @@ pub(super) fn prompt_for_key_chord(
 	let (ok_button, cancel_button) = build_ok_cancel_buttons_on(&panel, &dialog, &t("OK"));
 	// TRANSLATORS: Button in the Set Shortcut dialog that clears the captured key combination.
 	let clear_button = Button::builder(&panel).with_id(ID_CLEAR_SHORTCUT).with_label(&t("&Clear")).build();
-	// Clear is not a stock id, so it can't go in the wxStdDialogButtonSizer. It sits to the
+	// Clear is not a stock ID, so it can't go in the wxStdDialogButtonSizer. It sits to the
 	// left of one instead, which still leaves OK and Cancel in the platform's own order.
 	let std_button_sizer = StdDialogButtonSizerBuilder::new().build();
 	std_button_sizer.add_button(&ok_button);

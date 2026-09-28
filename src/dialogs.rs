@@ -6,8 +6,8 @@ use wxdragon::prelude::*;
 /// Default padding used between widgets and dialog edges, in device-independent pixels.
 ///
 /// This is the value at 100% display scaling. Pass it through [`WxWidget::from_dip_int`] before
-/// handing it to a sizer, or use [`dialog_padding`], which does that for you - on a 150%
-/// display a raw 10 here is two thirds of the intended gap.
+/// handing it to a sizer, or use [`dialog_padding`], which does that for you. On a 150%
+/// display, a raw 10 here is two-thirds of the intended gap.
 pub const DIALOG_PADDING: i32 = 10;
 
 /// [`DIALOG_PADDING`] scaled for the display `reference` is on.
@@ -36,9 +36,9 @@ pub fn show_warning(parent: &dyn WxWidget, message: impl Display, title: &str) {
 
 /// Builds a standard OK/Cancel button pair parented to `dialog`.
 ///
-/// `ok_label` is caller-supplied since it varies by dialog (e.g. "OK" vs. a verb like
-/// "Go"); the Cancel button is always the localized "Cancel", translated via
-/// [`patois::t`]. Uses the stock `ID_OK`/`ID_CANCEL` IDs (so a plain click ends the
+/// `ok_label` is supplied by the caller because it varies by dialog (for example, "OK" or a verb
+/// such as "Go"). The Cancel button is always the localized "Cancel", translated with
+/// [`patois::t()`]. Uses the stock `ID_OK`/`ID_CANCEL` IDs (so a plain click ends the
 /// modal without extra wiring), wires `dialog`'s Escape key and affirmative
 /// (Enter-default) behavior to Cancel/OK, and makes OK the visual default button.
 ///
@@ -65,11 +65,11 @@ pub fn build_ok_cancel_buttons_on(parent: &dyn WxWidget, dialog: &Dialog, ok_lab
 	(ok_button, cancel_button)
 }
 
-/// Builds a Yes/No button pair parented to `dialog`, both labels localized via [`patois::t`].
+/// Builds a Yes/No button pair parented to `dialog`, both labels localized with [`patois::t()`].
 ///
 /// The reason to build these rather than reach for a `MessageDialog` with `YesNo`: on Windows
 /// that is the native task dialog, whose buttons are labeled by the OS in the *system*
-/// language. An app translated into French running on an English Windows shows a French
+/// language. An app translated into French and running on English Windows shows a French
 /// question over English buttons. These are real `Button`s, so they read in the app's own
 /// language like everything else in the dialog.
 ///
@@ -117,7 +117,7 @@ pub fn add_yes_no_footer(content_sizer: BoxSizer, yes_button: Button, no_button:
 	content_sizer.add_sizer(&button_sizer, 0, SizerFlag::Expand | SizerFlag::All, dialog_padding(&yes_button));
 }
 
-/// Appends a single-button row (e.g. "Close") to `content_sizer`.
+/// Appends a single-button row (such as "Close") to `content_sizer`.
 ///
 /// Uses a native `wxStdDialogButtonSizer`. The single-button counterpart to
 /// [`add_ok_cancel_footer`], for dialogs that only need a dismiss action.
@@ -164,7 +164,7 @@ pub fn confirm(parent: &dyn WxWidget, message: &str, title: &str) -> bool {
 
 /// Shows a modal integer-entry dialog with a label and a bounded spin control.
 ///
-/// Returns `None` if the user cancelled. Enter key submits.
+/// Returns `None` if the user cancels. Pressing Enter submits the dialog.
 #[must_use]
 pub fn prompt_number(
 	parent: &dyn WxWidget,
@@ -200,7 +200,7 @@ pub fn prompt_number(
 
 /// Shows a modal single-line text entry dialog.
 ///
-/// Returns `None` if the user cancelled or entered only whitespace.
+/// Returns `None` if the user cancels or enters only whitespace.
 #[must_use]
 pub fn prompt_text(parent: &dyn WxWidget, message: &str, title: &str) -> Option<String> {
 	let dialog = TextEntryDialog::builder(parent, message, title)

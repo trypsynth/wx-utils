@@ -15,7 +15,7 @@ pub fn menu_label(base: &str, shortcut: &str) -> String {
 /// Relabels an existing menu item, keeping its shortcut column in step.
 ///
 /// Does nothing when `id` is not in `menu_bar`, so a menu that varies by platform or build can
-/// be relabelled in one pass without every caller checking first.
+/// be relabeled in one pass without every caller checking first.
 pub fn set_menu_item_label(menu_bar: &MenuBar, id: i32, base: &str, shortcut: &str) {
 	if let Some(item) = menu_bar.find_item(id) {
 		item.set_label(&menu_label(base, shortcut));

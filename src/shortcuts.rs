@@ -51,7 +51,7 @@ pub use key_chord::KeyChord;
 pub enum TabScope {
 	/// Active whenever the app is running, whether or not its window has focus.
 	///
-	/// The dialog requires Ctrl, Alt or Win on these chords, since a bare key would take that key
+	/// The dialog requires Ctrl, Alt, or Win on these chords, since a bare key would take that key
 	/// from every other program, and offers the Win modifier, which only global hotkeys can use.
 	Global,
 	/// Active while the app is in this mode. Tabs in the same mode share a keymap and conflict
@@ -237,9 +237,9 @@ fn build_tab<M: ShortcutModel + 'static>(
 				if is_global && !(new_chord.ctrl || new_chord.raw_ctrl || new_chord.alt || new_chord.win) {
 					crate::show_warning(
 						&parent,
-						// TRANSLATORS: Shown when a system-wide shortcut has no Ctrl, Alt or Win modifier.
+						// TRANSLATORS: Shown when a system-wide shortcut has no Ctrl, Alt, or Win modifier.
 						t(
-							"A system-wide shortcut needs Ctrl, Alt or Win, or it would take that key from every other program.",
+							"A system-wide shortcut needs Ctrl, Alt, or Win, or it would take that key from every other program.",
 						),
 						// TRANSLATORS: Title of the dialog refusing a shortcut that can't be used.
 						&t("Shortcut Not Allowed"),

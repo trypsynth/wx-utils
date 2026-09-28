@@ -85,7 +85,7 @@ mod platform {
 			let mut registered: Vec<(i32, T)> = Vec::new();
 			let mut failed_here = Vec::new();
 			for (index, (chord, modifiers, key, value)) in wanted.into_iter().enumerate() {
-				// Ids only have to be unique within this thread; 0xBFFF is the top of the range an
+				// IDs only have to be unique within this thread; 0xBFFF is the top of the range an
 				// application may use.
 				let Some(id) = i32::try_from(index + 1).ok().filter(|&id| id <= 0xBFFF) else {
 					failed_here.push(chord);

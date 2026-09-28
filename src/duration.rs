@@ -2,7 +2,7 @@
 
 use patois::nt;
 
-/// Formats a duration in whole seconds as a localized, comma-joined list of its non-zero
+/// Formats a duration in whole seconds as a localized, comma-joined list of its nonzero
 /// segments, such as `"1 hour, 5 minutes, 3 seconds"`.
 ///
 /// Written out in words rather than as `1:05:03` because this is text a screen reader reads
@@ -18,15 +18,15 @@ pub fn format_duration_seconds(total_seconds: u64) -> String {
 	let seconds = total_seconds % 60;
 	let mut parts: Vec<String> = Vec::new();
 	if hours >= 1 {
-		// TRANSLATORS: Duration segment for hours (e.g. "1 hour" / "5 hours"). The %d placeholder is replaced with the count.
+		// TRANSLATORS: Duration segment for hours (for example, "1 hour" or "5 hours"). The %d placeholder is replaced with the count.
 		parts.push(nt("%d hour", "%d hours", hours).replacen("%d", &hours.to_string(), 1));
 	}
 	if minutes >= 1 {
-		// TRANSLATORS: Duration segment for minutes (e.g. "1 minute" / "5 minutes"). The %d placeholder is replaced with the count.
+		// TRANSLATORS: Duration segment for minutes (for example, "1 minute" or "5 minutes"). The %d placeholder is replaced with the count.
 		parts.push(nt("%d minute", "%d minutes", minutes).replacen("%d", &minutes.to_string(), 1));
 	}
 	if seconds >= 1 || total_seconds == 0 {
-		// TRANSLATORS: Duration segment for seconds (e.g. "1 second" / "5 seconds"). The %d placeholder is replaced with the count.
+		// TRANSLATORS: Duration segment for seconds (for example, "1 second" or "5 seconds"). The %d placeholder is replaced with the count.
 		parts.push(nt("%d second", "%d seconds", seconds).replacen("%d", &seconds.to_string(), 1));
 	}
 	parts.join(", ")

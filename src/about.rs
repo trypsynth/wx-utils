@@ -64,7 +64,7 @@ impl<'a> AboutBoxBuilder<'a> {
 		self
 	}
 
-	/// Sets the licence text shown in the dialog.
+	/// Sets the license text shown in the dialog.
 	///
 	/// Platforms that offer a native about box do not have a place for this, so setting it makes
 	/// wxWidgets fall back to its own dialog. That is already the case once developers or a

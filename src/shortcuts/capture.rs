@@ -53,10 +53,24 @@ pub(super) fn prompt_for_key_chord(
 	let info_text = t("Configure shortcut for {}:").replace("{}", action_name);
 	let info_label = StaticText::builder(&panel).with_label(&info_text).build();
 	main_sizer.add(&info_label, 0, SizerFlag::Expand | SizerFlag::All, padding);
-	// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Ctrl modifier in the shortcut.
-	let ctrl_cb = CheckBox::builder(&panel).with_label(&t("&Ctrl")).build();
-	// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Alt modifier in the shortcut.
-	let alt_cb = CheckBox::builder(&panel).with_label(&t("&Alt")).build();
+	// wx's Ctrl is Cmd on macOS, and Alt is the key Macs label Option.
+	let (ctrl_label, alt_label) = if cfg!(target_os = "macos") {
+		(
+			// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Command modifier in the shortcut, on macOS.
+			t("&Cmd"),
+			// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Option modifier in the shortcut, on macOS.
+			t("&Option"),
+		)
+	} else {
+		(
+			// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Ctrl modifier in the shortcut.
+			t("&Ctrl"),
+			// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Alt modifier in the shortcut.
+			t("&Alt"),
+		)
+	};
+	let ctrl_cb = CheckBox::builder(&panel).with_label(&ctrl_label).build();
+	let alt_cb = CheckBox::builder(&panel).with_label(&alt_label).build();
 	// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Shift modifier in the shortcut.
 	let shift_cb = CheckBox::builder(&panel).with_label(&t("&Shift")).build();
 	// TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Windows logo key in a system-wide shortcut.
@@ -113,7 +127,7 @@ pub(super) fn prompt_for_key_chord(
 		} else {
 			let chord = KeyChord::new(ctrl_cb.get_value(), alt_cb.get_value(), shift_cb.get_value(), &trimmed)
 				.with_win(win_cb.get_value());
-			Some(chord.to_shortcut_string())
+			Some(chord.to_display_string())
 		}
 	};
 	let refresh_preview_label = move || {

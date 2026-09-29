@@ -250,7 +250,7 @@ fn build_tab<M: ShortcutModel + 'static>(
 				if let Some((other_tab, other_action)) = conflict {
 					// TRANSLATORS: the three {} are, in order: the key chord, the action it's currently assigned to, and the action being (re)assigned to it
 					let msg = t("'{}' is already assigned to '{}'. Reassign it to '{}'?")
-						.replacen("{}", &new_chord.to_shortcut_string(), 1)
+						.replacen("{}", &new_chord.to_display_string(), 1)
 						.replacen("{}", &state.borrow().action_name(other_action), 1)
 						.replacen("{}", &name, 1);
 					// TRANSLATORS: Title of the dialog warning that a shortcut is already taken
@@ -316,7 +316,7 @@ fn build_tab<M: ShortcutModel + 'static>(
 
 fn format_list_item<M: ShortcutModel>(model: &M, tab: usize, action: M::Action) -> String {
 	// TRANSLATORS: Shown in the Customize Keyboard Shortcuts list in place of a key combination when an action has no shortcut assigned
-	let chord_str = model.chord(tab, action).map_or_else(|| t("None"), |c| c.to_shortcut_string());
+	let chord_str = model.chord(tab, action).map_or_else(|| t("None"), |c| c.to_display_string());
 	format!("{}: {}", model.action_name(action), chord_str)
 }
 

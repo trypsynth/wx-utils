@@ -68,6 +68,19 @@ This is behind the `global-hotkeys` feature. Only Windows is implemented. On oth
 * `prompt_text` shows a single-line text entry dialog, and returns the trimmed value, or `None` if the user cancels or leaves it blank.
 * `show_error` and `show_warning` show a modal message dialog with the matching icon.
 
+### Progress window
+
+`progress::run_with_progress` runs work on a worker thread behind a native progress window. When the work returns, it calls you back on the UI thread with the result, and whether the user pressed Cancel. The work gets a `Progress` handle:
+
+* `set` moves the gauge, or makes it pulse when the total is unknown.
+* `set_message` replaces the text in the window.
+* `is_cancelled` and `cancel_flag` tell the work that the user pressed Cancel.
+* `ask` shows a dialog of your own, such as `confirm`, over the progress window, and hands its result back to the work.
+
+One progress window shows at a time. A run started while another one shows waits until that one has ended.
+
+To try it, run `cargo run --example progress`. The example shows fake downloads.
+
 ## Translation
 
 wx-utils is marked `[package.metadata.patois] translatable = true`. If your app uses [patois](https://github.com/trypsynth/patois) and calls `patois_build::gen_pot` over your workspace, wx-utils's own translatable strings, such as "Cancel", are added to your app's catalog automatically. You don't need to set anything up.

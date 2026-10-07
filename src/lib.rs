@@ -7,6 +7,7 @@ mod duration;
 pub mod global_hotkeys;
 mod ids;
 mod menu;
+pub mod progress;
 #[cfg(feature = "shortcuts")]
 pub mod shortcuts;
 

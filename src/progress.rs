@@ -12,10 +12,12 @@ use std::{
 
 use wxdragon::{ffi, prelude::*, window::WxWidget};
 
+mod ending;
 mod handle;
 mod lifecycle;
 mod queue;
 
+use ending::Ending;
 pub use handle::Progress;
 use handle::{Question, Shared};
 use lifecycle::ProgressLifecycle;
@@ -30,6 +32,7 @@ thread_local! {
 	static DIALOG: ProgressLifecycle<ProgressDialog> = const { ProgressLifecycle::new() };
 	static RUNS: RefCell<RunQueue<Start>> = const { RefCell::new(RunQueue::new()) };
 	static ON_END: RefCell<Option<OnEnd>> = const { RefCell::new(None) };
+	static ENDING: RefCell<Ending> = const { RefCell::new(Ending::new()) };
 }
 
 /// How a run ended.
@@ -45,8 +48,9 @@ pub enum Ended {
 ///
 /// The window has a gauge, `message` and a Cancel button, and is modal for the whole application.
 /// `work` reports through its [`Progress`]. `done` gets the result of `work` and how the run
-/// ended, after the window has closed. After Cancel the window closes at once, but `done` waits
-/// until `work` returns. If `work` panics, the window closes and `done` is not called.
+/// ended, once the window is gone and the application's windows are enabled again, so it can open
+/// windows and move focus. After Cancel the window closes at once, but `done` waits until `work`
+/// returns. If `work` panics, the window closes and `done` is not called.
 ///
 /// Call it on the UI thread. While another run's window shows, this run waits, and starts after
 /// the other run's `done` has returned. `title` and `message` are shown as given, so pass
@@ -108,6 +112,8 @@ fn begin<T: Send + 'static>(
 				| ProgressDialogStyle::CanAbort,
 		)
 		.build();
+	ENDING.set(Ending::new());
+	notice_destruction(&dialog);
 	DIALOG.with(|lifecycle| lifecycle.set(dialog));
 	let shared = Arc::new(Shared::default());
 	let result = Arc::new(Mutex::new(None));
@@ -142,12 +148,44 @@ fn end_run(shared: Arc<Shared>) {
 		lifecycle.finish(Box::new(move || {
 			DIALOG.with(ProgressLifecycle::clear);
 			let ended = if shared.is_cancelled() { Ended::Cancelled } else { Ended::Completed };
-			if let Some(on_end) = ON_END.take() {
-				on_end(ended);
+			if let Some(ended) = ENDING.with_borrow_mut(|ending| ending.work_returned(ended)) {
+				finish_run(ended);
 			}
-			post_to_ui(start_next);
 		}));
 	});
+}
+
+/// Ends the run once `dialog` has been destroyed, which wx does some time after it is closed. A
+/// dialog that was never created counts as destroyed already.
+fn notice_destruction(dialog: &ProgressDialog) {
+	let dialog_ptr = dialog.handle_ptr();
+	if dialog_ptr.is_null() {
+		ENDING.with_borrow_mut(Ending::window_destroyed);
+		return;
+	}
+	// SAFETY: `dialog_ptr` is the progress dialog just built, which is a wxDialog. The handle is
+	// only used to bind an event and does not own the dialog.
+	let handler = unsafe { Dialog::from_ptr(dialog_ptr.cast()) };
+	handler.bind_internal(EventType::DESTROY, move |event| {
+		// Destroy events from the dialog's own children reach it too.
+		if event.get_event_object().is_some_and(|object| object.as_ptr() == dialog_ptr) {
+			post_to_ui(window_destroyed);
+		}
+		event.skip(true);
+	});
+}
+
+fn window_destroyed() {
+	if let Some(ended) = ENDING.with_borrow_mut(Ending::window_destroyed) {
+		finish_run(ended);
+	}
+}
+
+fn finish_run(ended: Ended) {
+	if let Some(on_end) = ON_END.take() {
+		on_end(ended);
+	}
+	post_to_ui(start_next);
 }
 
 fn start_next() {

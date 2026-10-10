@@ -2,7 +2,7 @@
 //!
 //! "Download" connects (the bar pulses), asks whether to go on, then counts to 50 with the bar
 //! moving. "Download twice" starts two runs at once; the second waits for the first. Each run
-//! logs how it ended.
+//! logs how it ended and moves focus to the log.
 use std::{thread, time::Duration};
 
 use wx_utils::{
@@ -41,6 +41,7 @@ fn download(parent: &Frame, log: TextCtrl, name: &str) {
 	let name = name.to_owned();
 	run_with_progress(parent, &format!("Downloading {name}"), "Starting...", fake_download, move |outcome, ended| {
 		log.append_text(&format!("{name}: {outcome} ({ended:?})\n"));
+		log.set_focus();
 	});
 }
 

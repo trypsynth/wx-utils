@@ -70,7 +70,7 @@ This is behind the `global-hotkeys` feature. Only Windows is implemented. On oth
 
 ### Progress window
 
-`progress::run_with_progress` runs work on a worker thread behind a native progress window. When the work returns, it calls you back on the UI thread with the result, and whether the user pressed Cancel. The work gets a `Progress` handle:
+`progress::run_with_progress` runs work on a worker thread behind a native progress window. When the work returns and the progress window is gone, it calls you back on the UI thread with the result, and whether the user pressed Cancel. By then the application's windows are enabled again, so the callback can open windows and move focus. The work gets a `Progress` handle:
 
 * `set` moves the gauge, or makes it pulse when the total is unknown.
 * `set_message` replaces the text in the window.

@@ -36,6 +36,7 @@ use patois::t;
 use wxdragon::prelude::*;
 
 mod capture;
+mod layout;
 
 pub use key_chord::KeyChord;
 
@@ -316,7 +317,16 @@ fn build_tab<M: ShortcutModel + 'static>(
 
 fn format_list_item<M: ShortcutModel>(model: &M, tab: usize, action: M::Action) -> String {
 	// TRANSLATORS: Shown in the Customize Keyboard Shortcuts list in place of a key combination when an action has no shortcut assigned
-	let chord_str = model.chord(tab, action).map_or_else(|| t("None"), |c| c.to_display_string());
+	let chord = model.chord(tab, action);
+	let chord_str = chord.as_ref().map_or_else(|| t("None"), KeyChord::to_display_string);
+	// A global hotkey is registered through the key `VkKeyScan` names instead, so it is left alone.
+	let stranded = model.tab_scope(tab) != TabScope::Global && chord.as_ref().is_some_and(|c| !layout::is_typable(c));
+	let chord_str = if stranded {
+		// TRANSLATORS: A shortcut in the Customize Keyboard Shortcuts list whose key is not on the keyboard layout in use, so it cannot be pressed. The {} placeholder is replaced with the shortcut, for example "Ctrl+;".
+		t("{} (not on this keyboard layout)").replace("{}", &chord_str)
+	} else {
+		chord_str
+	};
 	format!("{}: {}", model.action_name(action), chord_str)
 }
 

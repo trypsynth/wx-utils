@@ -13,7 +13,7 @@ edition = "2024"
 translatable = true
 
 [features]
-shortcuts = ["dep:live-region", "dep:key-chord"]
+shortcuts = ["dep:live-region", "dep:key-chord", "dep:windows"]
 global-hotkeys = ["dep:key-chord", "dep:windows"]
 
 [dependencies]
